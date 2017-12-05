@@ -26,8 +26,8 @@ def extract(deploy, caffemodel, phase):
     dnn = initialize_network(deploy, phase, caffemodel)
     layers = dnn.params.keys()
     for l in layers:
-	print l, dnn.params[l][0].data.shape
-    
+	    print l, dnn.params[l][0].data.shape
+    #'conv1', 'conv2', 'ip1', 'ip2'
     np.save(prefix+'_layers.npy',layers)
     
     #print dnn.params['conv1'][0].data.shape
@@ -48,6 +48,8 @@ def prune_edges_with_small_weight(ndarray,percent):
 def relative_index(absolute_index, ndarray, max_index):
     first = absolute_index[0]
     relative = np.insert(np.diff(absolute_index), 0, first)
+	#np.diff(absolute_index)
+	#349 [5 1 1 1 1 2 1 1 1]
     dense = ndarray.tolist()
     max_index_or_less = relative.tolist()
     shift = 0
@@ -92,11 +94,11 @@ def compress(target_layers, weights, biases, pruning_percent, cluster_num, store
 	if 'expand/3x3' in l:
 		sparse_1d = prune_edges_with_small_weight(weights[l],pruning_percent).flatten()
         else:
-		#sparse_1d = weights[l].flatten()
+		#sparse_1d = weights[l].flatten() sparse_1d.shape: (500,)
 		sparse_1d = prune_edges_with_small_weight(weights[l],pruning_percent*0.5).flatten()
 	#K-means
         nonzero = sparse_1d[sparse_1d != 0]
-        # nonzero = [1,2,3]
+        # nonzero = [1,2,3] nonzero: (350,) -> reshape(-1,1) (350,1)
         print cluster_num, nonzero.size
 	#clusters = KMeans(n_clusters=cluster_num).fit(nonzero.reshape(-1,1))
         
@@ -105,7 +107,10 @@ def compress(target_layers, weights, biases, pruning_percent, cluster_num, store
         
         
         relative_index_in_4bits, cluster_labels = relative_index(np.where(sparse_1d !=0)[0],clusters.labels_+1,max_index=16-1)
-
+        #clusters.labels_:这350个数对应的64个聚类中心的索引值
+		#350 [53 25  2 22 51 62 49 12 32 26 31 10  6 51...]
+		#np.where(sparse_1d != 0)[0]:
+		#350 [  1   6   7   8   9  10  11  ...490 491 493 494 496 497 498 499]
         if relative_index_in_4bits.size % 2 == 1:
             relative_index_in_4bits = np.append(relative_index_in_4bits, 0)
         
